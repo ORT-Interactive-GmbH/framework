@@ -5,6 +5,7 @@ namespace Illuminate\Routing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Traits\Macroable;
 use Illuminate\Session\Store as SessionStore;
+use Illuminate\Contracts\Routing\UrlGenerator;
 
 class Redirector
 {
@@ -26,10 +27,11 @@ class Redirector
 
     /**
      * Create a new Redirector instance.
-     * Redirector constructor.
-     * @param \ORT\LaravelPackages\MultiDomain\Services\Routing\UrlGenerator $generator
+     *
+     * @param UrlGenerator|\Illuminate\Routing\UrlGenerator $generator
+     * @return void
      */
-    public function __construct(\ORT\LaravelPackages\MultiDomain\Services\Routing\UrlGenerator $generator)
+    public function __construct(UrlGenerator $generator)
     {
         $this->generator = $generator;
     }
