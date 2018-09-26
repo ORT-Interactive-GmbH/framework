@@ -5,6 +5,7 @@ namespace Illuminate\Routing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Traits\Macroable;
 use Illuminate\Session\Store as SessionStore;
+use Illuminate\Contracts\Routing\UrlGenerator;
 
 class Redirector
 {
@@ -13,7 +14,7 @@ class Redirector
     /**
      * The URL generator instance.
      *
-     * @var \Illuminate\Routing\UrlGenerator
+     * @var \Illuminate\Contracts\Routing\UrlGenerator
      */
     protected $generator;
 
@@ -27,7 +28,7 @@ class Redirector
     /**
      * Create a new Redirector instance.
      *
-     * @param  \Illuminate\Routing\UrlGenerator  $generator
+     * @param  \Illuminate\Contracts\Routing\UrlGenerator  $generator
      * @return void
      */
     public function __construct(UrlGenerator $generator)
@@ -201,7 +202,7 @@ class Redirector
     /**
      * Get the URL generator instance.
      *
-     * @return \Illuminate\Routing\UrlGenerator
+     * @return \Illuminate\Contracts\Routing\UrlGenerator
      */
     public function getUrlGenerator()
     {
