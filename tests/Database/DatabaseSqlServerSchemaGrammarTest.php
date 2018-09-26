@@ -204,6 +204,16 @@ class DatabaseSqlServerSchemaGrammarTest extends TestCase
         $this->assertEquals('sp_rename "users", "foo"', $statements[0]);
     }
 
+    public function testRenameIndex()
+    {
+        $blueprint = new Blueprint('users');
+        $blueprint->renameIndex('foo', 'bar');
+        $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
+
+        $this->assertCount(1, $statements);
+        $this->assertEquals('sp_rename N\'"users"."foo"\', "bar", N\'INDEX\'', $statements[0]);
+    }
+
     public function testAddingPrimaryKey()
     {
         $blueprint = new Blueprint('users');
@@ -756,6 +766,18 @@ class DatabaseSqlServerSchemaGrammarTest extends TestCase
 
         $this->assertCount(1, $statements);
         $this->assertEquals('alter table "geo" add "coordinates" geography not null', $statements[0]);
+    }
+
+    public function testGrammarsAreMacroable()
+    {
+        // compileReplace macro.
+        $this->getGrammar()::macro('compileReplace', function () {
+            return true;
+        });
+
+        $c = $this->getGrammar()::compileReplace();
+
+        $this->assertTrue($c);
     }
 
     protected function getConnection()

@@ -403,6 +403,15 @@ class ValidationValidatorTest extends TestCase
         $v->messages()->setFormat(':message');
         $this->assertEquals('The bar field is required when color is red.', $v->messages()->first('bar'));
 
+        //required_unless:foo,bar
+        $trans = $this->getIlluminateArrayTranslator();
+        $trans->addLines(['validation.required_unless' => 'The :attribute field is required unless :other is in :values.'], 'en');
+        $trans->addLines(['validation.values.color.1' => 'red'], 'en');
+        $v = new Validator($trans, ['color' => '2', 'bar' => ''], ['bar' => 'RequiredUnless:color,1']);
+        $this->assertFalse($v->passes());
+        $v->messages()->setFormat(':message');
+        $this->assertEquals('The bar field is required unless color is in red.', $v->messages()->first('bar'));
+
         //in:foo,bar,...
         $trans = $this->getIlluminateArrayTranslator();
         $trans->addLines(['validation.in' => ':attribute must be included in :values.'], 'en');
@@ -1051,6 +1060,98 @@ class ValidationValidatorTest extends TestCase
         $this->assertFalse($v->passes());
     }
 
+    public function testGreaterThan()
+    {
+        $trans = $this->getIlluminateArrayTranslator();
+        $v = new Validator($trans, ['lhs' => 15, 'rhs' => 10], ['lhs' => 'numeric|gt:rhs']);
+        $this->assertTrue($v->passes());
+
+        $v = new Validator($trans, ['lhs' => 'longer string', 'rhs' => 'string'], ['lhs' => 'gt:rhs']);
+        $this->assertTrue($v->passes());
+
+        $v = new Validator($trans, ['lhs' => ['string'], 'rhs' => [1, 'string']], ['lhs' => 'gt:rhs']);
+        $this->assertTrue($v->fails());
+
+        $fileOne = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\File')->setMethods(['getSize'])->setConstructorArgs([__FILE__, false])->getMock();
+        $fileOne->expects($this->any())->method('getSize')->will($this->returnValue(5472));
+        $fileTwo = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\File')->setMethods(['getSize'])->setConstructorArgs([__FILE__, false])->getMock();
+        $fileTwo->expects($this->any())->method('getSize')->will($this->returnValue(3151));
+        $v = new Validator($trans, ['lhs' => $fileOne, 'rhs' => $fileTwo], ['lhs' => 'gt:rhs']);
+        $this->assertTrue($v->passes());
+
+        $v = new Validator($trans, ['lhs' => 15], ['lhs' => 'numeric|gt:10']);
+        $this->assertTrue($v->passes());
+    }
+
+    public function testLessThan()
+    {
+        $trans = $this->getIlluminateArrayTranslator();
+        $v = new Validator($trans, ['lhs' => 15, 'rhs' => 10], ['lhs' => 'numeric|lt:rhs']);
+        $this->assertTrue($v->fails());
+
+        $v = new Validator($trans, ['lhs' => 'longer string', 'rhs' => 'string'], ['lhs' => 'lt:rhs']);
+        $this->assertTrue($v->fails());
+
+        $v = new Validator($trans, ['lhs' => ['string'], 'rhs' => [1, 'string']], ['lhs' => 'lt:rhs']);
+        $this->assertTrue($v->passes());
+
+        $fileOne = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\File')->setMethods(['getSize'])->setConstructorArgs([__FILE__, false])->getMock();
+        $fileOne->expects($this->any())->method('getSize')->will($this->returnValue(5472));
+        $fileTwo = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\File')->setMethods(['getSize'])->setConstructorArgs([__FILE__, false])->getMock();
+        $fileTwo->expects($this->any())->method('getSize')->will($this->returnValue(3151));
+        $v = new Validator($trans, ['lhs' => $fileOne, 'rhs' => $fileTwo], ['lhs' => 'lt:rhs']);
+        $this->assertTrue($v->fails());
+
+        $v = new Validator($trans, ['lhs' => 15], ['lhs' => 'numeric|lt:10']);
+        $this->assertTrue($v->fails());
+    }
+
+    public function testGreaterThanOrEqual()
+    {
+        $trans = $this->getIlluminateArrayTranslator();
+        $v = new Validator($trans, ['lhs' => 15, 'rhs' => 15], ['lhs' => 'numeric|gte:rhs']);
+        $this->assertTrue($v->passes());
+
+        $v = new Validator($trans, ['lhs' => 'longer string', 'rhs' => 'string'], ['lhs' => 'gte:rhs']);
+        $this->assertTrue($v->passes());
+
+        $v = new Validator($trans, ['lhs' => ['string'], 'rhs' => [1, 'string']], ['lhs' => 'gte:rhs']);
+        $this->assertTrue($v->fails());
+
+        $fileOne = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\File')->setMethods(['getSize'])->setConstructorArgs([__FILE__, false])->getMock();
+        $fileOne->expects($this->any())->method('getSize')->will($this->returnValue(5472));
+        $fileTwo = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\File')->setMethods(['getSize'])->setConstructorArgs([__FILE__, false])->getMock();
+        $fileTwo->expects($this->any())->method('getSize')->will($this->returnValue(5472));
+        $v = new Validator($trans, ['lhs' => $fileOne, 'rhs' => $fileTwo], ['lhs' => 'gte:rhs']);
+        $this->assertTrue($v->passes());
+
+        $v = new Validator($trans, ['lhs' => 15], ['lhs' => 'numeric|gte:15']);
+        $this->assertTrue($v->passes());
+    }
+
+    public function testLessThanOrEqual()
+    {
+        $trans = $this->getIlluminateArrayTranslator();
+        $v = new Validator($trans, ['lhs' => 15, 'rhs' => 15], ['lhs' => 'numeric|lte:rhs']);
+        $this->assertTrue($v->passes());
+
+        $v = new Validator($trans, ['lhs' => 'longer string', 'rhs' => 'string'], ['lhs' => 'lte:rhs']);
+        $this->assertTrue($v->fails());
+
+        $v = new Validator($trans, ['lhs' => ['string'], 'rhs' => [1, 'string']], ['lhs' => 'lte:rhs']);
+        $this->assertTrue($v->passes());
+
+        $fileOne = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\File')->setMethods(['getSize'])->setConstructorArgs([__FILE__, false])->getMock();
+        $fileOne->expects($this->any())->method('getSize')->will($this->returnValue(5472));
+        $fileTwo = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\File')->setMethods(['getSize'])->setConstructorArgs([__FILE__, false])->getMock();
+        $fileTwo->expects($this->any())->method('getSize')->will($this->returnValue(5472));
+        $v = new Validator($trans, ['lhs' => $fileOne, 'rhs' => $fileTwo], ['lhs' => 'lte:rhs']);
+        $this->assertTrue($v->passes());
+
+        $v = new Validator($trans, ['lhs' => 15], ['lhs' => 'numeric|lte:10']);
+        $this->assertTrue($v->fails());
+    }
+
     public function testValidateAccepted()
     {
         $trans = $this->getIlluminateArrayTranslator();
@@ -1430,6 +1531,154 @@ class ValidationValidatorTest extends TestCase
         $this->assertFalse($v->passes());
         $v->messages()->setFormat(':message');
         $this->assertEquals('file', $v->messages()->first('photo'));
+    }
+
+    public function testValidateGtPlaceHolderIsReplacedProperly()
+    {
+        $trans = $this->getIlluminateArrayTranslator();
+        $trans->addLines([
+            'validation.gt.numeric' => ':value',
+            'validation.gt.string' => ':value',
+            'validation.gt.file' => ':value',
+            'validation.gt.array' => ':value',
+        ], 'en');
+
+        $v = new Validator($trans, ['items' => '3'], ['items' => 'gt:4']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(4, $v->messages()->first('items'));
+
+        $v = new Validator($trans, ['items' => 3, 'more' => 5], ['items' => 'numeric|gt:more']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(5, $v->messages()->first('items'));
+
+        $v = new Validator($trans, ['items' => 'abc', 'more' => 'abcde'], ['items' => 'gt:more']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(5, $v->messages()->first('items'));
+
+        $file = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\UploadedFile')->setMethods(['getSize', 'isValid'])->setConstructorArgs([__FILE__, false])->getMock();
+        $file->expects($this->any())->method('getSize')->will($this->returnValue(4072));
+        $file->expects($this->any())->method('isValid')->will($this->returnValue(true));
+        $biggerFile = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\UploadedFile')->setMethods(['getSize', 'isValid'])->setConstructorArgs([__FILE__, false])->getMock();
+        $biggerFile->expects($this->any())->method('getSize')->will($this->returnValue(5120));
+        $biggerFile->expects($this->any())->method('isValid')->will($this->returnValue(true));
+        $v = new Validator($trans, ['photo' => $file, 'bigger' => $biggerFile], ['photo' => 'file|gt:bigger']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(5, $v->messages()->first('photo'));
+
+        $v = new Validator($trans, ['items' => [1, 2, 3], 'more' => [0, 1, 2, 3]], ['items' => 'gt:more']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(4, $v->messages()->first('items'));
+    }
+
+    public function testValidateLtPlaceHolderIsReplacedProperly()
+    {
+        $trans = $this->getIlluminateArrayTranslator();
+        $trans->addLines([
+            'validation.lt.numeric' => ':value',
+            'validation.lt.string' => ':value',
+            'validation.lt.file' => ':value',
+            'validation.lt.array' => ':value',
+        ], 'en');
+
+        $v = new Validator($trans, ['items' => '3'], ['items' => 'lt:2']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(2, $v->messages()->first('items'));
+
+        $v = new Validator($trans, ['items' => 3, 'less' => 2], ['items' => 'numeric|lt:less']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(2, $v->messages()->first('items'));
+
+        $v = new Validator($trans, ['items' => 'abc', 'less' => 'ab'], ['items' => 'lt:less']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(2, $v->messages()->first('items'));
+
+        $file = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\UploadedFile')->setMethods(['getSize', 'isValid'])->setConstructorArgs([__FILE__, false])->getMock();
+        $file->expects($this->any())->method('getSize')->will($this->returnValue(4072));
+        $file->expects($this->any())->method('isValid')->will($this->returnValue(true));
+        $smallerFile = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\UploadedFile')->setMethods(['getSize', 'isValid'])->setConstructorArgs([__FILE__, false])->getMock();
+        $smallerFile->expects($this->any())->method('getSize')->will($this->returnValue(2048));
+        $smallerFile->expects($this->any())->method('isValid')->will($this->returnValue(true));
+        $v = new Validator($trans, ['photo' => $file, 'smaller' => $smallerFile], ['photo' => 'file|lt:smaller']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(2, $v->messages()->first('photo'));
+
+        $v = new Validator($trans, ['items' => [1, 2, 3], 'less' => [0, 1]], ['items' => 'lt:less']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(2, $v->messages()->first('items'));
+    }
+
+    public function testValidateGtePlaceHolderIsReplacedProperly()
+    {
+        $trans = $this->getIlluminateArrayTranslator();
+        $trans->addLines([
+            'validation.gte.numeric' => ':value',
+            'validation.gte.string' => ':value',
+            'validation.gte.file' => ':value',
+            'validation.gte.array' => ':value',
+        ], 'en');
+
+        $v = new Validator($trans, ['items' => '3'], ['items' => 'gte:4']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(4, $v->messages()->first('items'));
+
+        $v = new Validator($trans, ['items' => 3, 'more' => 5], ['items' => 'numeric|gte:more']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(5, $v->messages()->first('items'));
+
+        $v = new Validator($trans, ['items' => 'abc', 'more' => 'abcde'], ['items' => 'gte:more']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(5, $v->messages()->first('items'));
+
+        $file = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\UploadedFile')->setMethods(['getSize', 'isValid'])->setConstructorArgs([__FILE__, false])->getMock();
+        $file->expects($this->any())->method('getSize')->will($this->returnValue(4072));
+        $file->expects($this->any())->method('isValid')->will($this->returnValue(true));
+        $biggerFile = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\UploadedFile')->setMethods(['getSize', 'isValid'])->setConstructorArgs([__FILE__, false])->getMock();
+        $biggerFile->expects($this->any())->method('getSize')->will($this->returnValue(5120));
+        $biggerFile->expects($this->any())->method('isValid')->will($this->returnValue(true));
+        $v = new Validator($trans, ['photo' => $file, 'bigger' => $biggerFile], ['photo' => 'file|gte:bigger']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(5, $v->messages()->first('photo'));
+
+        $v = new Validator($trans, ['items' => [1, 2, 3], 'more' => [0, 1, 2, 3]], ['items' => 'gte:more']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(4, $v->messages()->first('items'));
+    }
+
+    public function testValidateLtePlaceHolderIsReplacedProperly()
+    {
+        $trans = $this->getIlluminateArrayTranslator();
+        $trans->addLines([
+            'validation.lte.numeric' => ':value',
+            'validation.lte.string' => ':value',
+            'validation.lte.file' => ':value',
+            'validation.lte.array' => ':value',
+        ], 'en');
+
+        $v = new Validator($trans, ['items' => '3'], ['items' => 'lte:2']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(2, $v->messages()->first('items'));
+
+        $v = new Validator($trans, ['items' => 3, 'less' => 2], ['items' => 'numeric|lte:less']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(2, $v->messages()->first('items'));
+
+        $v = new Validator($trans, ['items' => 'abc', 'less' => 'ab'], ['items' => 'lte:less']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(2, $v->messages()->first('items'));
+
+        $file = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\UploadedFile')->setMethods(['getSize', 'isValid'])->setConstructorArgs([__FILE__, false])->getMock();
+        $file->expects($this->any())->method('getSize')->will($this->returnValue(4072));
+        $file->expects($this->any())->method('isValid')->will($this->returnValue(true));
+        $smallerFile = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\UploadedFile')->setMethods(['getSize', 'isValid'])->setConstructorArgs([__FILE__, false])->getMock();
+        $smallerFile->expects($this->any())->method('getSize')->will($this->returnValue(2048));
+        $smallerFile->expects($this->any())->method('isValid')->will($this->returnValue(true));
+        $v = new Validator($trans, ['photo' => $file, 'smaller' => $smallerFile], ['photo' => 'file|lte:smaller']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(2, $v->messages()->first('photo'));
+
+        $v = new Validator($trans, ['items' => [1, 2, 3], 'less' => [0, 1]], ['items' => 'lte:less']);
+        $this->assertFalse($v->passes());
+        $this->assertEquals(2, $v->messages()->first('items'));
     }
 
     public function testValidateIn()
@@ -2146,7 +2395,7 @@ class ValidationValidatorTest extends TestCase
     public function testValidatePhpMimetypes()
     {
         $trans = $this->getIlluminateArrayTranslator();
-        $uploadedFile = [__FILE__, '', null, null, null, true];
+        $uploadedFile = [__DIR__.'/ValidationRuleTest.php', '', null, null, null, true];
 
         $file = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\UploadedFile')->setMethods(['guessExtension', 'getClientOriginalExtension'])->setConstructorArgs($uploadedFile)->getMock();
         $file->expects($this->any())->method('guessExtension')->will($this->returnValue('rtf'));
@@ -2713,6 +2962,12 @@ class ValidationValidatorTest extends TestCase
         $this->assertTrue($v->fails());
 
         $v = new Validator($trans, ['x' => '17:44'], ['x' => 'date_format:H:i|after:17:44']);
+        $this->assertTrue($v->fails());
+
+        $v = new Validator($trans, ['x' => '2038-01-18', '2018-05-12' => '2038-01-19'], ['x' => 'date_format:Y-m-d|before:2018-05-12']);
+        $this->assertTrue($v->fails());
+
+        $v = new Validator($trans, ['x' => '1970-01-02', '2018-05-12' => '1970-01-01'], ['x' => 'date_format:Y-m-d|after:2018-05-12']);
         $this->assertTrue($v->fails());
     }
 
@@ -3651,10 +3906,6 @@ class ValidationValidatorTest extends TestCase
         $this->assertEquals(['cat' => ['cat1' => ['name' => '1']]], \Illuminate\Validation\ValidationData::extractDataFromPath('cat.cat1.name', $data));
     }
 
-    public function testInlineMessagesMayUseAsteriskForEachRules()
-    {
-    }
-
     public function testUsingSettersWithImplicitRules()
     {
         $trans = $this->getIlluminateArrayTranslator();
@@ -3900,6 +4151,47 @@ class ValidationValidatorTest extends TestCase
         $data = $v->validate();
 
         $this->assertEquals(['first' => 'john', 'preferred' => 'john'], $data);
+    }
+
+    public function testValidateReturnsValidatedDataNestedRules()
+    {
+        $post = ['nested' => ['foo' => 'bar', 'baz' => ''], 'array' => [1, 2]];
+
+        $rules = ['nested.foo' => 'required', 'array.*' => 'integer'];
+
+        $v = new Validator($this->getIlluminateArrayTranslator(), $post, $rules);
+        $v->sometimes('type', 'required', function () {
+            return false;
+        });
+        $data = $v->validate();
+
+        $this->assertEquals(['nested' => ['foo' => 'bar'], 'array' => [1, 2]], $data);
+    }
+
+    public function testValidateReturnsValidatedDataNestedChildRules()
+    {
+        $post = ['nested' => ['foo' => 'bar', 'with' => 'extras', 'type' => 'admin']];
+
+        $v = new Validator($this->getIlluminateArrayTranslator(), $post, ['nested.foo' => 'required']);
+        $v->sometimes('nested.type', 'required', function () {
+            return false;
+        });
+        $data = $v->validate();
+
+        $this->assertEquals(['nested' => ['foo' => 'bar']], $data);
+    }
+
+    public function testValidateReturnsValidatedDataNestedArrayRules()
+    {
+        $post = ['nested' => [['bar' => 'baz', 'with' => 'extras', 'type' => 'admin'], ['bar' => 'baz2', 'with' => 'extras', 'type' => 'admin']]];
+
+        $v = new Validator($this->getIlluminateArrayTranslator(), $post, ['nested.*.bar' => 'required']);
+        $v->sometimes('nested.*.type', 'required', function () {
+            return false;
+        });
+        $data = $v->validate();
+
+        $this->assertEquals(['nested' => [['bar' => 'baz'], ['bar' => 'baz2']]], $data);
     }
 
     protected function getTranslator()

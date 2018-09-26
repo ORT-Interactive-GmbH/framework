@@ -194,6 +194,16 @@ class DatabasePostgresSchemaGrammarTest extends TestCase
         $this->assertEquals('alter table "users" rename to "foo"', $statements[0]);
     }
 
+    public function testRenameIndex()
+    {
+        $blueprint = new Blueprint('users');
+        $blueprint->renameIndex('foo', 'bar');
+        $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
+
+        $this->assertCount(1, $statements);
+        $this->assertEquals('alter index "foo" rename to "bar"', $statements[0]);
+    }
+
     public function testAddingPrimaryKey()
     {
         $blueprint = new Blueprint('users');
@@ -692,15 +702,14 @@ class DatabasePostgresSchemaGrammarTest extends TestCase
         $this->assertEquals('alter table "users" add constraint "users_parent_id_foreign" foreign key ("parent_id") references "parents" ("id") on delete cascade deferrable initially deferred', $statements[0]);
     }
 
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage The database driver in use does not support the Geometry spatial column type.
-     */
     public function testAddingGeometry()
     {
         $blueprint = new Blueprint('geo');
         $blueprint->geometry('coordinates');
-        $blueprint->toSql($this->getConnection(), $this->getGrammar());
+        $statements = $blueprint->toSql($this->getConnection(), $this->getGrammar());
+
+        $this->assertCount(1, $statements);
+        $this->assertEquals('alter table "geo" add column "coordinates" geography(geometry, 4326) not null', $statements[0]);
     }
 
     public function testAddingPoint()
@@ -780,6 +789,13 @@ class DatabasePostgresSchemaGrammarTest extends TestCase
         $this->assertEquals('drop table "alpha","beta","gamma" cascade', $statement);
     }
 
+    public function testDropAllViewsEscapesTableNames()
+    {
+        $statement = $this->getGrammar()->compileDropAllViews(['alpha', 'beta', 'gamma']);
+
+        $this->assertEquals('drop view "alpha","beta","gamma" cascade', $statement);
+    }
+
     protected function getConnection()
     {
         return m::mock('Illuminate\Database\Connection');
@@ -788,5 +804,17 @@ class DatabasePostgresSchemaGrammarTest extends TestCase
     public function getGrammar()
     {
         return new \Illuminate\Database\Schema\Grammars\PostgresGrammar;
+    }
+
+    public function testGrammarsAreMacroable()
+    {
+        // compileReplace macro.
+        $this->getGrammar()::macro('compileReplace', function () {
+            return true;
+        });
+
+        $c = $this->getGrammar()::compileReplace();
+
+        $this->assertTrue($c);
     }
 }

@@ -882,6 +882,25 @@ class RoutingRouteTest extends TestCase
         $this->assertEquals('foo', $routes[0]->getPrefix());
     }
 
+    public function testRouteGroupingOutsideOfInheritedNamespace()
+    {
+        $router = $this->getRouter();
+
+        $router->group(['namespace' => 'App\Http\Controllers'], function ($router) {
+            $router->group(['namespace' => '\Foo\Bar'], function ($router) {
+                $router->get('users', 'UsersController@index');
+            });
+        });
+
+        $routes = $router->getRoutes();
+        $routes = $routes->getRoutes();
+
+        $this->assertEquals(
+            'Foo\Bar\UsersController@index',
+            $routes[0]->getAction()['uses']
+        );
+    }
+
     public function testCurrentRouteUses()
     {
         $router = $this->getRouter();
@@ -1289,6 +1308,28 @@ class RoutingRouteTest extends TestCase
         $this->assertFalse(isset($_SERVER['route.test.controller.except.middleware']));
     }
 
+    public function testControllerRoutingArrayCallable()
+    {
+        unset(
+            $_SERVER['route.test.controller.middleware'], $_SERVER['route.test.controller.except.middleware'],
+            $_SERVER['route.test.controller.middleware.class'],
+            $_SERVER['route.test.controller.middleware.parameters.one'], $_SERVER['route.test.controller.middleware.parameters.two']
+        );
+
+        $router = $this->getRouter();
+
+        $router->get('foo/bar', [RouteTestControllerStub::class, 'index']);
+
+        $this->assertEquals('Hello World', $router->dispatch(Request::create('foo/bar', 'GET'))->getContent());
+        $this->assertTrue($_SERVER['route.test.controller.middleware']);
+        $this->assertEquals(\Illuminate\Http\Response::class, $_SERVER['route.test.controller.middleware.class']);
+        $this->assertEquals(0, $_SERVER['route.test.controller.middleware.parameters.one']);
+        $this->assertEquals(['foo', 'bar'], $_SERVER['route.test.controller.middleware.parameters.two']);
+        $this->assertFalse(isset($_SERVER['route.test.controller.except.middleware']));
+        $action = $router->getRoutes()->getRoutes()[0]->getAction()['controller'];
+        $this->assertEquals('Illuminate\Tests\Routing\RouteTestControllerStub@index', $action);
+    }
+
     public function testCallableControllerRouting()
     {
         $router = $this->getRouter();
@@ -1443,11 +1484,37 @@ class RoutingRouteTest extends TestCase
         $router->get('contact_us', function () {
             throw new \Exception('Route should not be reachable.');
         });
-        $router->redirect('contact_us', 'contact', 302);
+        $router->redirect('contact_us', 'contact');
 
         $response = $router->dispatch(Request::create('contact_us', 'GET'));
         $this->assertTrue($response->isRedirect('contact'));
         $this->assertEquals(302, $response->getStatusCode());
+    }
+
+    public function testRouteRedirectWithCustomStatus()
+    {
+        $router = $this->getRouter();
+        $router->get('contact_us', function () {
+            throw new \Exception('Route should not be reachable.');
+        });
+        $router->redirect('contact_us', 'contact', 301);
+
+        $response = $router->dispatch(Request::create('contact_us', 'GET'));
+        $this->assertTrue($response->isRedirect('contact'));
+        $this->assertEquals(301, $response->getStatusCode());
+    }
+
+    public function testRoutePermanentRedirect()
+    {
+        $router = $this->getRouter();
+        $router->get('contact_us', function () {
+            throw new \Exception('Route should not be reachable.');
+        });
+        $router->permanentRedirect('contact_us', 'contact');
+
+        $response = $router->dispatch(Request::create('contact_us', 'GET'));
+        $this->assertTrue($response->isRedirect('contact'));
+        $this->assertEquals(301, $response->getStatusCode());
     }
 
     protected function getRouter()
