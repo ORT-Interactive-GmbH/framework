@@ -2,10 +2,15 @@
 
 namespace Illuminate\Tests\Integration\Auth;
 
+use Illuminate\Auth\Events\Login;
 use Orchestra\Testbench\TestCase;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Auth\Events\Attempting;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Auth\EloquentUserProvider;
+use Illuminate\Auth\Events\Authenticated;
 use Illuminate\Tests\Integration\Auth\Fixtures\AuthenticationTestUser;
 
 /**
@@ -59,18 +64,12 @@ class AuthenticationTest extends TestCase
         });
     }
 
-    /**
-     * @test
-     */
-    public function basic_auth_protects_route()
+    public function test_basic_auth_protects_route()
     {
         $this->get('basic')->assertStatus(401);
     }
 
-    /**
-     * @test
-     */
-    public function basic_auth_passes_on_correct_credentials()
+    public function test_basic_auth_passes_on_correct_credentials()
     {
         $response = $this->get('basic', [
             'Authorization' => 'Basic '.base64_encode('email:password'),
@@ -80,10 +79,7 @@ class AuthenticationTest extends TestCase
         $this->assertEquals('email', $response->decodeResponseJson()['email']);
     }
 
-    /**
-     * @test
-     */
-    public function basic_auth_respects_additional_conditions()
+    public function test_basic_auth_respects_additional_conditions()
     {
         AuthenticationTestUser::create([
             'username' => 'username2',
@@ -101,20 +97,14 @@ class AuthenticationTest extends TestCase
         ])->assertStatus(200);
     }
 
-    /**
-     * @test
-     */
-    public function basic_auth_fails_on_wrong_credentials()
+    public function test_basic_auth_fails_on_wrong_credentials()
     {
         $this->get('basic', [
             'Authorization' => 'Basic '.base64_encode('email:wrong_password'),
         ])->assertStatus(401);
     }
 
-    /**
-     * @test
-     */
-    public function logging_in_fails_via_attempt()
+    public function test_logging_in_fails_via_attempt()
     {
         Event::fake();
 
@@ -123,13 +113,13 @@ class AuthenticationTest extends TestCase
         );
         $this->assertFalse($this->app['auth']->check());
         $this->assertNull($this->app['auth']->user());
-        Event::assertDispatched(\Illuminate\Auth\Events\Attempting::class, function ($event) {
+        Event::assertDispatched(Attempting::class, function ($event) {
             $this->assertEquals('web', $event->guard);
             $this->assertEquals(['email' => 'wrong', 'password' => 'password'], $event->credentials);
 
             return true;
         });
-        Event::assertDispatched(\Illuminate\Auth\Events\Failed::class, function ($event) {
+        Event::assertDispatched(Failed::class, function ($event) {
             $this->assertEquals('web', $event->guard);
             $this->assertEquals(['email' => 'wrong', 'password' => 'password'], $event->credentials);
             $this->assertNull($event->user);
@@ -138,10 +128,7 @@ class AuthenticationTest extends TestCase
         });
     }
 
-    /**
-     * @test
-     */
-    public function logging_in_succeeds_via_attempt()
+    public function test_logging_in_succeeds_via_attempt()
     {
         Event::fake();
 
@@ -151,19 +138,19 @@ class AuthenticationTest extends TestCase
         $this->assertInstanceOf(AuthenticationTestUser::class, $this->app['auth']->user());
         $this->assertTrue($this->app['auth']->check());
 
-        Event::assertDispatched(\Illuminate\Auth\Events\Attempting::class, function ($event) {
+        Event::assertDispatched(Attempting::class, function ($event) {
             $this->assertEquals('web', $event->guard);
             $this->assertEquals(['email' => 'email', 'password' => 'password'], $event->credentials);
 
             return true;
         });
-        Event::assertDispatched(\Illuminate\Auth\Events\Login::class, function ($event) {
+        Event::assertDispatched(Login::class, function ($event) {
             $this->assertEquals('web', $event->guard);
             $this->assertEquals(1, $event->user->id);
 
             return true;
         });
-        Event::assertDispatched(\Illuminate\Auth\Events\Authenticated::class, function ($event) {
+        Event::assertDispatched(Authenticated::class, function ($event) {
             $this->assertEquals('web', $event->guard);
             $this->assertEquals(1, $event->user->id);
 
@@ -171,9 +158,6 @@ class AuthenticationTest extends TestCase
         });
     }
 
-    /**
-     * @test
-     */
     public function test_logging_in_using_id()
     {
         $this->app['auth']->loginUsingId(1);
@@ -182,9 +166,6 @@ class AuthenticationTest extends TestCase
         $this->assertFalse($this->app['auth']->loginUsingId(1000));
     }
 
-    /**
-     * @test
-     */
     public function test_logging_out()
     {
         Event::fake();
@@ -194,7 +175,7 @@ class AuthenticationTest extends TestCase
 
         $this->app['auth']->logout();
         $this->assertNull($this->app['auth']->user());
-        Event::assertDispatched(\Illuminate\Auth\Events\Logout::class, function ($event) {
+        Event::assertDispatched(Logout::class, function ($event) {
             $this->assertEquals('web', $event->guard);
             $this->assertEquals(1, $event->user->id);
 
@@ -202,10 +183,7 @@ class AuthenticationTest extends TestCase
         });
     }
 
-    /**
-     * @test
-     */
-    public function logging_in_out_via_attempt_remembering()
+    public function test_logging_in_out_via_attempt_remembering()
     {
         $this->assertTrue(
             $this->app['auth']->attempt(['email' => 'email', 'password' => 'password'], true)
@@ -223,10 +201,7 @@ class AuthenticationTest extends TestCase
         $this->assertNotEquals($oldToken, $user->getRememberToken());
     }
 
-    /**
-     * @test
-     */
-    public function auth_via_attempt_remembering()
+    public function test_auth_via_attempt_remembering()
     {
         $provider = new EloquentUserProvider(app('hash'), AuthenticationTestUser::class);
 
